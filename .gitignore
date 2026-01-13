@@ -8,6 +8,12 @@
 /spec/examples.txt
 /test/tmp/
 /test/version_tmp/
+/.bundle
+/log
+/tmp
+.DS_Store
+.env
+Gemfile.lock
 /tmp/
 
 # Used by dotenv library to load environment variables.
