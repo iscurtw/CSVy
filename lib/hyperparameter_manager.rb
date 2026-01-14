@@ -164,8 +164,8 @@ class HyperparameterManager
       all_param_keys = @results.map { |r| r[:params].keys.map(&:to_s) }.flatten.uniq.sort
       all_metric_keys = @results.map { |r| r[:metrics].keys.map(&:to_s) }.flatten.uniq.sort
 
-      # Write headers
-      headers = all_param_keys + all_metric_keys
+      # Write headers with prefixes for robust classification on reload
+      headers = all_param_keys.map { |k| "param_#{k}" } + all_metric_keys.map { |k| "metric_#{k}" }
       csv << headers
 
       # Write data rows
@@ -185,25 +185,35 @@ class HyperparameterManager
     data = CSV.read(filename, headers: true)
     return if data.empty?
 
-    # Common metric column names to identify metrics vs params
-    known_metrics = ['rmse', 'mae', 'r2', 'mse', 'accuracy', 'precision', 'recall', 
-                     'f1', 'auc', 'loss', 'error', 'score']
-    
     data.each do |row|
       hash = row.to_h
       # Parse JSON if values look like JSON
       hash.each { |k, v| hash[k] = JSON.parse(v) rescue v }
       
-      # Separate params and metrics based on column names
+      # Separate params and metrics based on prefix convention
       params_hash = {}
       metrics_hash = {}
       
       hash.each do |key, value|
-        # Check if this looks like a metric (case-insensitive)
-        if known_metrics.any? { |m| key.to_s.downcase.include?(m) }
-          metrics_hash[key.to_sym] = value
+        key_str = key.to_s
+        if key_str.start_with?('param_')
+          # Remove prefix and store as param
+          clean_key = key_str.sub(/^param_/, '')
+          params_hash[clean_key.to_sym] = value
+        elsif key_str.start_with?('metric_')
+          # Remove prefix and store as metric
+          clean_key = key_str.sub(/^metric_/, '')
+          metrics_hash[clean_key.to_sym] = value
         else
-          params_hash[key.to_sym] = value
+          # Fallback for files without prefix (legacy support)
+          # Use heuristic: common metric names
+          known_metrics = ['rmse', 'mae', 'r2', 'mse', 'accuracy', 'precision', 'recall', 
+                           'f1', 'auc', 'loss', 'error', 'score']
+          if known_metrics.any? { |m| key_str.downcase == m }
+            metrics_hash[key.to_sym] = value
+          else
+            params_hash[key.to_sym] = value
+          end
         end
       end
       
@@ -215,10 +225,15 @@ class HyperparameterManager
   def best_result(metric, mode = :max)
     return nil if @results.empty?
 
+    # Filter to only results that have this metric
+    metric_sym = metric.to_sym
+    with_metric = @results.select { |r| r[:metrics].key?(metric_sym) && !r[:metrics][metric_sym].nil? }
+    return nil if with_metric.empty?
+
     if mode == :max
-      @results.max_by { |r| r[:metrics][metric.to_sym] }
+      with_metric.max_by { |r| r[:metrics][metric_sym].to_f }
     else
-      @results.min_by { |r| r[:metrics][metric.to_sym] }
+      with_metric.min_by { |r| r[:metrics][metric_sym].to_f }
     end
   end
 
