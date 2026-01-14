@@ -2,18 +2,33 @@
 
 ## Available Features from Dataset
 
-### Raw Features (from legend):
-- **GP**: Games Played
-- **W/L/OT**: Wins, Losses, OT Losses
-- **PTS**: Total Points (W×2 + OT×1)
+### Numerical Features (Built-In):
+- **GP**: Games Started
+- **RW**: Regulation Wins (2 points)
+- **OTW**: Overtime Wins (2 points)
+- **RL**: Regulation Losses (0 points)
+- **OTL**: Overtime Losses (1 point)
+- **PTS**: Total Points
 - **P%**: Points Percentage
-- **RW/ROW**: Regulation Wins, Regulation+OT Wins
-- **GF/GA**: Goals For, Goals Against
+- **GF**: Goals For
+- **GA**: Goals Against
 - **DIFF**: Goal Differential (GF - GA)
-- **HOME/AWAY**: Home/Away records
-- **S/O**: Shootout record
-- **L10**: Last 10 games record
-- **STRK**: Current streak
+- **HOME**: Home Record
+- **AWAY**: Away Record
+- **OT**: OT Record
+- **L10**: Recent Record (Last 10 Games)
+- **STRK**: Win Streak
+- **travel_time**: Travel Time (hours)
+- **travel_distance**: Travel Distance (miles)
+- **rest_time**: Days Since Last Game
+- **injuries**: Number of Key Injuries
+
+### Categorical Features (Built-In):
+- **clinch_status**: Playoff/Division/Conference clinched
+- **award**: Presidents' Trophy winner (best regular season record)
+- **elimination**: Playoff elimination status (eliminator/eliminated)
+- **travel**: Away team traveling to home court
+- **division**: D1, D2, or D3 tier
 
 ### Features to Engineer with CSVy:
 

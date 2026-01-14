@@ -6,10 +6,14 @@
 
 ## Phase 0: Data Collection (Before Data Release)
 
-- [ ] Scrape/collect injury reports for key players
-  - Check NHL.com injury reports, ESPN, create CSV with [date, team, player, position, status]
-- [ ] Gather travel schedules (back-to-back games, long road trips)
-  - Parse game schedule, calculate days between games and distance traveled (use arena coordinates)
+**CONFIRMED BUILT-IN FEATURES:**
+✅ Travel time, travel distance (already in dataset!)
+✅ Rest time / days since last game (already in dataset!)
+✅ Injuries count (already in dataset!)
+✅ Clinch status, elimination status (already in dataset!)
+✅ Division tiers (D1/D2/D3) (already in dataset!)
+
+**STILL NEED TO COLLECT:**
 - [ ] Collect special teams data (power play/penalty kill percentages)
   - Scrape from NHL stats API or Hockey Reference, calculate rolling 10-game averages
 - [ ] Find goalie starter announcements (if available pre-game)
@@ -18,8 +22,8 @@
   - Create events table [date, team, event_type, description], join to games by date
 - [ ] Identify division rivalries and historical matchups
   - Flag division games, calculate head-to-head records, add "rivalry intensity" score
-- [ ] Document arena-specific factors (ice quality, altitude, travel time zones)
-  - Create arena metadata table [arena_id, city, altitude, timezone], join to home team games
+- [ ] Document arena-specific factors (ice quality, altitude)
+  - Create arena metadata table [arena_id, city, altitude], join to home team games
 
 ---
 
@@ -31,19 +35,27 @@
 - [ ] Run preprocessing: `ruby cli.rb competitive-pipeline data/hockey_challenge.csv -o data/processed`
 - [ ] Verify output files exist in `data/processed/`
 
-### 1.2 Additional Feature Engineering
+### 1.2 Additional Feature Engineering (Beyond Built-Ins)
+- [ ] **USE BUILT-IN**: travel_distance, travel_time, rest_time, injuries
+  - These are already in the dataset! Just need to normalize/bin them
+- [ ] Fatigue interactions: `travel_distance * (1 / rest_time)` (tired from travel)
+  - Create fatigue_index = travel_distance / max(rest_time, 1), high values = exhausted
+- [ ] Rest bins: back-to-back (rest_time=0-1), normal (2-3), extended (4+)
+  - Create categorical bins, one-hot encode for linear models
+- [ ] Injury severity: interactions with `injuries * is_away` (worse when traveling)
+  - Binary flags: has_injuries, multiple_injuries (>2), key_injury_home_advantage
+- [ ] Clinch motivation: `clinch_status` interaction with playoff proximity
+  - Flag teams that clinched early (may rest stars), vs teams fighting for position
+- [ ] Elimination effect: teams eliminated early may tank/rest players
+  - Binary flag for eliminated teams, interaction with game_number (late season tanking)
+- [ ] Presidents' Trophy curse: teams with `award` may underperform in playoffs
+  - Historical stat: track post-season performance vs regular season for award winners
 - [ ] External factors: Weather data (if home games, temperature affects ice quality)
   - Scrape weather APIs for game day temps at arena locations, create binary flag for extreme cold (<0°F)
-- [ ] External factors: Travel distance between games (fatigue metric)
-  - Calculate haversine distance between arena lat/longs, normalize by days of rest
 - [ ] External factors: Playoff implications (motivation level)
   - Calculate games behind division leader, assign higher weight to games in March/April
-- [ ] Team dynamics: Roster changes, trades, injuries (manual data collection)
-  - Create binary flags for key player absence, track days since trade/call-up
 - [ ] Team dynamics: Line chemistry (top line vs depth scoring)
   - Use rolling average of top-6 forward points vs bottom-6 as ratio
-- [ ] Temporal: Days since last game (rest vs rust trade-off)
-  - Calculate datetime diff, create bins: back-to-back (0-1), normal (2-3), extended rest (4+)
 - [ ] Temporal: Time of season (early = inconsistent, late = playoff push)
   - Game number / total games as decimal (0.0 to 1.0), create quadratic feature
 - [ ] Temporal: Month effects (December fatigue, March playoff race)
