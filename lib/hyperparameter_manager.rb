@@ -1,5 +1,6 @@
 require 'csv'
 require 'json'
+require 'logger'
 
 class HyperparameterManager
   attr_accessor :params, :results
@@ -15,13 +16,51 @@ class HyperparameterManager
   end
 
   # Perform random search over the hyperparameter space
-  def random_search(iterations = 10)
-    iterations.times do |i|
-      sample = {}
-      @params.each do |param_name, config|
-        sample[param_name] = sample_param(config)
+  # Supports both:
+  # - New style: random_search(iterations = 10) { |sample, i| ... }
+  # - Old style: random_search(config_file, n_samples, output_file = nil)
+  def random_search(arg1 = 10, arg2 = nil, arg3 = nil)
+    # Detect old-style call: random_search(config_file, n_samples, output_file)
+    if arg1.is_a?(String) && (arg2.is_a?(Integer) || arg2.is_a?(String))
+      config_file = arg1
+      n_samples = arg2.to_i
+      output_file = arg3
+      
+      # Load config if @params is empty
+      if @params.empty? && File.exist?(config_file)
+        require 'yaml'
+        @params = YAML.load_file(config_file)
       end
-      yield(sample, i) if block_given?
+      
+      results = []
+      n_samples.times do |i|
+        sample = {}
+        @params.each do |param_name, config|
+          sample[param_name] = sample_param(config)
+        end
+        results << sample
+      end
+      
+      # Save to file if specified
+      if output_file
+        CSV.open(output_file, 'w') do |csv|
+          csv << results.first.keys
+          results.each { |r| csv << r.values }
+        end
+        return output_file
+      end
+      
+      return results
+    else
+      # New-style call: random_search(iterations) { |sample, i| ... }
+      iterations = arg1
+      iterations.times do |i|
+        sample = {}
+        @params.each do |param_name, config|
+          sample[param_name] = sample_param(config)
+        end
+        yield(sample, i) if block_given?
+      end
     end
   end
 
@@ -48,9 +87,9 @@ class HyperparameterManager
       when 'choice'
         config['values'].sample
       when 'int'
-        config['min'] = config['min'] || 0
-        config['max'] = config['max'] || 100
-        rand(config['min']..config['max']).to_i
+        min_val = config['min'] || 0
+        max_val = config['max'] || 100
+        rand(min_val..max_val).to_i
       else
         config.values.sample
       end
@@ -62,8 +101,53 @@ class HyperparameterManager
   public
 
   # Add a result from a hyperparameter trial
-  def add_result(hyperparams, metrics)
-    @results << { params: hyperparams, metrics: metrics }
+  # Supports both:
+  # - New style: add_result(hyperparams, metrics)
+  # - Old style: add_result(tracking_file, experiment_id, metrics = {}, notes: nil)
+  def add_result(arg1, arg2 = nil, arg3 = nil, notes: nil)
+    # Detect new-style call: both args are hashes
+    if arg1.is_a?(Hash) && arg2.is_a?(Hash) && arg3.nil?
+      hyperparams = arg1
+      metrics = arg2
+      @results << { params: hyperparams, metrics: metrics }
+      return true
+    else
+      # Old-style call: add_result(tracking_file, experiment_id, metrics, notes: notes)
+      tracking_file = arg1
+      experiment_id = arg2
+      metrics = arg3 || {}
+      
+      # For backward compatibility, store in tracking file format
+      # Read existing data if file exists
+      data = []
+      if File.exist?(tracking_file)
+        require 'yaml'
+        data = YAML.load_file(tracking_file) || []
+      end
+      
+      # Add new result
+      result = {
+        'experiment_id' => experiment_id,
+        'timestamp' => Time.now.iso8601,
+        'metrics' => metrics,
+        'notes' => notes
+      }
+      data << result
+      
+      # Save back to file
+      File.write(tracking_file, data.to_yaml)
+      
+      # Also add to internal results for consistency
+      @results << {
+        params: { experiment_id: experiment_id },
+        metrics: metrics
+      }
+      
+      return true
+    end
+  rescue => e
+    puts "Error adding result: #{e.message}"
+    return false
   end
 
   # Save results to CSV file
@@ -93,11 +177,21 @@ class HyperparameterManager
     @results = []
     return unless File.exist?(filename)
 
-    CSV.read(filename, headers: true).each do |row|
+    data = CSV.read(filename, headers: true)
+    return if data.empty?
+
+    # Determine which columns are params vs metrics by examining first result
+    # Assume columns that were written first are params, rest are metrics
+    headers = data.headers
+    
+    data.each do |row|
       hash = row.to_h
       # Parse JSON if values look like JSON
       hash.each { |k, v| hash[k] = JSON.parse(v) rescue v }
-      @results << hash
+      
+      # For now, treat all columns as params since we don't have metadata
+      # This maintains backward compatibility
+      @results << { params: hash, metrics: {} }
     end
   end
 
@@ -105,11 +199,11 @@ class HyperparameterManager
   def best_result(metric, mode = :max)
     return nil if @results.empty?
 
-    best = @results.max_by { |r| r[:metrics][metric.to_sym] }
-    best if mode == :max
-
-    best = @results.min_by { |r| r[:metrics][metric.to_sym] }
-    best if mode == :min
+    if mode == :max
+      @results.max_by { |r| r[:metrics][metric.to_sym] }
+    else
+      @results.min_by { |r| r[:metrics][metric.to_sym] }
+    end
   end
 
   # Get summary statistics of results

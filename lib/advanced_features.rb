@@ -5,7 +5,7 @@ require 'logger'
 # Advanced features for CSV processing
 # This module provides enhanced functionality for working with CSV files
 
-class CSVAdvancedFeatures
+class AdvancedFeatures
   def initialize(logger = nil)
     @logger = logger || Logger.new($stdout)
   end
@@ -22,7 +22,7 @@ class CSVAdvancedFeatures
       if format
         Date.strptime(date_string.to_s.strip, format)
       else
-        # Try common date formats in order of likelihood
+        # Attempt ISO8601 format parsing
         Date.iso8601(date_string.to_s.strip)
       end
     rescue ArgumentError => e
