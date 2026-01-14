@@ -155,9 +155,9 @@ class HyperparameterManager
     return if @results.empty?
 
     CSV.open(filename, 'w') do |csv|
-      # Extract all unique parameter and metric keys
-      all_param_keys = @results.map { |r| r[:params].keys }.flatten.uniq.sort
-      all_metric_keys = @results.map { |r| r[:metrics].keys }.flatten.uniq.sort
+      # Extract all unique parameter and metric keys (normalized to strings)
+      all_param_keys = @results.map { |r| r[:params].keys.map(&:to_s) }.flatten.uniq.sort
+      all_metric_keys = @results.map { |r| r[:metrics].keys.map(&:to_s) }.flatten.uniq.sort
 
       # Write headers
       headers = all_param_keys + all_metric_keys
@@ -165,8 +165,8 @@ class HyperparameterManager
 
       # Write data rows
       @results.each do |result|
-        row = all_param_keys.map { |key| result[:params][key] } +
-              all_metric_keys.map { |key| result[:metrics][key] }
+        row = all_param_keys.map { |key| result[:params][key.to_sym] || result[:params][key] } +
+              all_metric_keys.map { |key| result[:metrics][key.to_sym] || result[:metrics][key] }
         csv << row
       end
     end
