@@ -10,7 +10,8 @@ Simple reference baselines for benchmarking.
 
 | File | Purpose |
 |------|---------|
-| `utils/baseline_model.py` | Core module with 6 baseline classes |
+| `models/baseline_model.ipynb` | Core implementation notebook |
+| `utils/baseline_model.py` | Reusable module with 6 baseline classes |
 | `training/train_baseline.ipynb` | Train & compare all baselines |
 | `validation/validate_baseline.ipynb` | 8 validation tests |
 | `baseline_tutorial.ipynb` | Tutorial explaining each baseline |
@@ -25,7 +26,8 @@ Dynamic rating system that updates after each game.
 
 | File | Purpose |
 |------|---------|
-| `utils/elo_model.py` | Core EloModel class |
+| `models/elo_model.ipynb` | Core implementation notebook |
+| `utils/elo_model.py` | Reusable EloModel class |
 | `training/train_elo.ipynb` | Grid search hyperparameter training |
 | `validation/validate_elo.ipynb` | Validation tests |
 | `elo_tutorial.ipynb` | Tutorial with examples |
@@ -87,6 +89,10 @@ Dynamic rating system that updates after each game.
 
 ```
 python/
+├── models/                     # Core implementation notebooks
+│   ├── baseline_model.ipynb    # Model 1
+│   └── elo_model.ipynb         # Model 2
+│
 ├── utils/                      # Reusable model modules
 │   ├── __init__.py
 │   ├── baseline_model.py       # Model 1
