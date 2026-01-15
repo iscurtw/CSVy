@@ -37,7 +37,7 @@ python/
 
 ### Step 1: Generate Hyperparameters (Ruby - Local)
 ```bash
-# In your CSVy repo
+
 ruby cli.rb hyperparam-grid config/hyperparams/model3_elo.yaml -o output/hyperparams/model3_elo_grid.csv
 ```
 

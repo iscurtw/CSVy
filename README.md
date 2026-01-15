@@ -57,8 +57,6 @@ ruby cli.rb ensemble-optimize predictions/ --actuals test.csv -o weights.csv
 
 ---
 
-## 📊 Competition Workflow (Step-by-Step)
-
 ### Phase 1: Data Preprocessing (CSVy)
 ```bash
 # Run full competitive pipeline (includes all advanced features)
@@ -199,8 +197,6 @@ ruby cli.rb validate-model final_ensemble_preds.csv \
 
 ---
 
-## The 5-Model Winning Strategy
-
 ### Model 1: Baseline (Benchmark)
 - **Purpose**: Establish baseline performance
 - **Method**: Simple mean/median prediction
@@ -241,14 +237,11 @@ ruby cli.rb validate-model final_ensemble_preds.csv \
 
 ---
 
-## Winning Tips
-
 ### 1. Feature Engineering is 80% of Success
 ```bash
 # Use ALL advanced features
 ruby cli.rb competitive-pipeline data/nhl.csv
 
-# Features that win:
 # - team_strength_index (composite metric)
 # - pythagorean_wins (expected vs actual)
 # - momentum_score (hot/cold streaks)
@@ -395,7 +388,7 @@ ruby cli.rb validate-model final_ensemble_preds.csv --bootstrap --calibration
 | ELO Rating | 2.4 | 1.9 | 0.72 | With MOV adjustments |
 | XGBoost | 2.0 | 1.6 | 0.82 | Best individual |
 | Random Forest | 2.2 | 1.7 | 0.78 | Good diversity |
-| **Ensemble** | **1.7** | **1.3** | **0.87** | **🏆 WINNING** |
+| **Ensemble** | **1.7** | **1.3** | **0.87** | ** WINNING** |
 
 *Performance improves by 50% from baseline to ensemble!*
 
@@ -437,10 +430,6 @@ ruby cli.rb best-params experiments/grid.csv --metric rmse
 
 ---
 
-## Built to Win
-
-**CSVy contains everything needed to dominate hockey prediction competitions:**
-
 **40+ CLI commands**  
 **14+ advanced features** (momentum, clutch, pythagorean, strength index)  
 **5 optimization algorithms** (Grid, Random, Bayesian, Genetic, Annealing)  
@@ -474,8 +463,7 @@ ruby cli.rb help ensemble-optimize
 
 ---
 
-**Let's win this!** 
-
+  ** --**
   ```
   x_standardized = (x - μ) / σ
   where μ = mean, σ = standard deviation
