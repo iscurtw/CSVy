@@ -83,4 +83,18 @@ notes: |
     - 1.0 = full carryover
     - 0.67 = regress 1/3 toward mean
   
+  Rest advantage: Per day of rest (dataset has rest_time built-in!)
+    - 0 = ignore rest
+    - 10 = +10 ELO per day rested more than opponent
+  
+  B2B penalty: Back-to-back games penalty (rest_time < 1)
+    - 0 = ignore fatigue
+    - 50 = -50 ELO when playing on 0 days rest
+  
+  BUILT-IN FEATURES TO USE:
+  - rest_time: days since last game
+  - travel_distance: miles traveled (correlates with fatigue)
+  - injuries: number of key injuries (affects team strength)
+  - division: D1/D2/D3 tiers (initial ratings should vary by tier)
+  
   This is important for presentation - implement from scratch!

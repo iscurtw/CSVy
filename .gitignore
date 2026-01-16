@@ -21,6 +21,13 @@ output/hyperparams/*.csv
 output/reports/*.html
 output/predictions/*.csv
 
+# Python
+python/venv/
+python/__pycache__/
+python/*.pyc
+python/.ipynb_checkpoints/
+python/.pytest_cache/
+
 # Database files
 *.db
 *.sqlite3
