@@ -18,6 +18,7 @@ require_relative 'lib/ensemble_builder'
 require_relative 'lib/model_tracker'
 require_relative 'lib/neural_network_wrapper'
 require_relative 'lib/winning_features'
+require_relative 'lib/stacked_ensemble'
 
 class CSVOrganizer < Thor
   desc "report FILE", "Generate HTML report with tables (no fancy charts)"
@@ -1356,6 +1357,149 @@ class CSVOrganizer < Thor
   
   desc "nn-status", "Check neural network model status and dependencies"
   def nn_status
+    nn = NeuralNetworkWrapper.new
+    
+    puts "\n=== Neural Network Status ==="
+    puts
+    
+    # Check dependencies
+    puts "Checking Python dependencies..."
+    deps = nn.check_dependencies
+    
+    if deps[:all_installed]
+      puts "\u2713 All dependencies installed"
+    else
+      puts "\u2717 Missing dependencies:"
+      deps[:missing].each do |pkg|
+        puts "  - #{pkg}"
+      end
+      puts "\nInstall with:"
+      puts "  pip install #{deps[:missing].join(' ')}"
+    end
+    
+    puts
+    
+    # Check for trained model
+    if File.exist?('models/best_nn_model.keras')
+      puts "\u2713 Trained model found: models/best_nn_model.keras"
+      puts "\u2713 Scaler found: models/scaler.pkl" if File.exist?('models/scaler.pkl')
+    else
+      puts "\u2717 No trained model found"
+      puts "  Train with: ruby cli.rb train-neural-network DATA_FILE --search 50"
+    end
+  end
+  
+  desc "train-stacked-ensemble PREDICTIONS_DIR ACTUALS_FILE", "Train meta-model that learns to combine all 6 base models"
+  option :meta_model, aliases: :m, type: :string, default: 'ridge', desc: 'Meta-model type: ridge, lasso, xgboost, neural_net'
+  option :target, aliases: :t, type: :string, default: 'goals', desc: 'Target column name'
+  option :output, aliases: :o, type: :string, desc: 'Output directory for meta-model'
+  def train_stacked_ensemble(predictions_dir, actuals_file)
+    unless Dir.exist?(predictions_dir)
+      puts "\u2717 Predictions directory not found: #{predictions_dir}"
+      exit 1
+    end
+    
+    unless File.exist?(actuals_file)
+      puts "\u2717 Actuals file not found: #{actuals_file}"
+      exit 1
+    end
+    
+    puts "\n==> TRAINING STACKED ENSEMBLE (Meta-Learner)"
+    puts "=" * 70
+    puts "Strategy: Train a model to learn WHEN to trust each base model"
+    puts "Expected: 5-10% RMSE improvement over simple averaging"
+    puts "=" * 70
+    puts
+    
+    stacker = StackedEnsemble.new(meta_model: options[:meta_model])
+    
+    result = stacker.train_meta_model(
+      predictions_dir,
+      actuals_file,
+      target_col: options[:target]
+    )
+    
+    puts
+    puts "\u2713 Meta-model trained successfully!"
+    puts "  Type: #{options[:meta_model]}"
+    puts "  RMSE: #{result[:meta_rmse].round(3)}"
+    puts "  Saved: #{result[:model_path]}"
+    puts
+    puts "Next steps:"
+    puts "  1. Analyze weights: ruby cli.rb analyze-stacking"
+    puts "  2. Generate predictions: ruby cli.rb predict-stacked PREDICTIONS_DIR"
+  end
+  
+  desc "predict-stacked PREDICTIONS_DIR", "Generate predictions using trained meta-model"
+  option :meta_model, aliases: :m, type: :string, default: 'ridge', desc: 'Meta-model type used in training'
+  option :output, aliases: :o, type: :string, default: 'stacked_predictions.csv', desc: 'Output file'
+  def predict_stacked(predictions_dir)
+    unless Dir.exist?(predictions_dir)
+      puts "\u2717 Predictions directory not found: #{predictions_dir}"
+      exit 1
+    end
+    
+    model_path = "models/meta_model_#{options[:meta_model]}.pkl"
+    unless File.exist?(model_path)
+      puts "\u2717 Meta-model not found: #{model_path}"
+      puts "  Train first: ruby cli.rb train-stacked-ensemble PREDICTIONS_DIR ACTUALS_FILE"
+      exit 1
+    end
+    
+    puts "==> Generating stacked ensemble predictions..."
+    
+    stacker = StackedEnsemble.new(meta_model: options[:meta_model])
+    stacker.instance_variable_set(:@meta_model_path, model_path)
+    
+    output_file = stacker.predict_with_meta_model(predictions_dir, output_file: options[:output])
+    
+    puts "[OK] Predictions saved: #{output_file}"
+  end
+  
+  desc "analyze-stacking", "Analyze which base models the meta-model trusts most"
+  option :meta_model, aliases: :m, type: :string, default: 'ridge', desc: 'Meta-model type'
+  def analyze_stacking
+    model_path = "models/meta_model_#{options[:meta_model]}.pkl"
+    unless File.exist?(model_path)
+      puts "\u2717 Meta-model not found: #{model_path}"
+      puts "  Train first: ruby cli.rb train-stacked-ensemble PREDICTIONS_DIR ACTUALS_FILE"
+      exit 1
+    end
+    
+    puts "==> Analyzing meta-model learned weights...\n"
+    
+    stacker = StackedEnsemble.new(meta_model: options[:meta_model])
+    stacker.instance_variable_set(:@meta_model_path, model_path)
+    
+    # Load base model names from saved model
+    require 'tempfile'
+    script = Tempfile.new(['get_base_models', '.py'])
+    script.write(<<~PYTHON)
+      import pickle
+      with open(#{model_path.to_json}, 'rb') as f:
+          meta = pickle.load(f)
+      print(','.join(meta['base_models']))
+    PYTHON
+    script.close
+    
+    python_exe = ENV['PYTHON_PATH'] || 'python'
+    base_models = `#{python_exe} #{script.path}`.strip.split(',')
+    
+    stacker.instance_variable_set(:@base_model_names, base_models)
+    
+    output = stacker.analyze_meta_model_weights
+    
+    puts
+    puts "Interpretation:"
+    puts "  - Higher weight = meta-model trusts this model more"
+    puts "  - Negative weight = model is anti-correlated (rare)"
+    puts "  - Near-zero weight = model provides little unique value"
+  ensure
+    script&.unlink
+  end
+  
+  desc "nn-status", "Check neural network model status and dependencies (DEPRECATED: use train-stacked-ensemble)"
+  def nn_status_old
     puts "🧠 Neural Network Status\n\n"
     
     nn = NeuralNetworkWrapper.new
