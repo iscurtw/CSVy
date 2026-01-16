@@ -40,6 +40,8 @@ class AdvancedFeatures:
         Returns:
             DataFrame with all new features added
         """
+        original_cols = set(self.df.columns)
+        
         print("Adding Tier 1: Physical Advantage features...")
         self.add_rest_advantage()
         self.add_home_away_edge()
@@ -54,7 +56,8 @@ class AdvancedFeatures:
         self.add_playoff_context()
         self.add_travel_fatigue()
         
-        print(f"✓ Added {len([c for c in self.df.columns if c not in self.df.columns])} new features")
+        new_features = [c for c in self.df.columns if c not in original_cols]
+        print(f"✓ Added {len(new_features)} new features")
         return self.df
     
     def add_rest_advantage(self) -> None:
@@ -111,24 +114,17 @@ class AdvancedFeatures:
         
         # Calculate home/away averages
         if 'goals' in self.df.columns and 'team' in self.df.columns:
-            home_avg = (
-                self.df[self.df['is_home'] == 1]
-                .groupby('team')['goals']
-                .expanding()
-                .mean()
-                .shift(1)
-            )
+            # Calculate team averages separately then merge back
+            home_mask = self.df['is_home'] == 1
+            away_mask = self.df['is_home'] == 0
             
-            away_avg = (
-                self.df[self.df['is_home'] == 0]
-                .groupby('team')['goals']
-                .expanding()
-                .mean()
-                .shift(1)
-            )
+            # Home goals average per team
+            home_stats = self.df[home_mask].groupby('team')['goals'].mean()
+            away_stats = self.df[away_mask].groupby('team')['goals'].mean()
             
-            self.df['home_goals_per_game'] = home_avg.groupby('team').ffill().fillna(3.0)
-            self.df['away_goals_per_game'] = away_avg.groupby('team').ffill().fillna(2.5)
+            # Map averages back to full dataframe
+            self.df['home_goals_per_game'] = self.df['team'].map(home_stats).fillna(3.0)
+            self.df['away_goals_per_game'] = self.df['team'].map(away_stats).fillna(2.5)
             
             print(f"  ✓ is_home: {self.df['is_home'].sum()} home games")
             print(f"  ✓ Home avg: {self.df['home_goals_per_game'].mean():.2f}, Away avg: {self.df['away_goals_per_game'].mean():.2f}")
@@ -151,9 +147,7 @@ class AdvancedFeatures:
         # Goals scored rolling average
         self.df['goals_last_5'] = (
             self.df.groupby('team')['goals']
-            .rolling(window=window, min_periods=1)
-            .mean()
-            .shift(1)
+            .transform(lambda x: x.rolling(window=window, min_periods=1).mean().shift(1))
             .fillna(3.0)
         )
         

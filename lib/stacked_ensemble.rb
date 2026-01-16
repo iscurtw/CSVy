@@ -258,6 +258,11 @@ class StackedEnsemble
     stdout, stderr, status = Open3.capture3(python_exe, script_file.path)
     output = stdout + stderr
     
+    unless status.success?
+      logger.error "Python script failed with exit code #{status.exitstatus}"
+      logger.error stderr unless stderr.empty?
+    end
+    
     logger.info output
     
     output

@@ -87,6 +87,8 @@ class StackedEnsemble:
                 predictions[model_name] = df['prediction'].values
             else:
                 numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) == 0:
+                    raise ValueError(f"No numeric columns found in {file}")
                 predictions[model_name] = df[numeric_cols[0]].values
         
         # Combine into DataFrame
@@ -216,8 +218,17 @@ class StackedEnsemble:
         elif self.meta_model_type == 'xgboost':
             weights = self.meta_model.feature_importances_
         elif self.meta_model_type == 'neural_net':
-            # Get first layer weights
-            weights = self.meta_model.layers[0].get_weights()[0].flatten()
+            # Get first layer weights (defensive check)
+            try:
+                layer_weights = self.meta_model.layers[0].get_weights()
+                if layer_weights and len(layer_weights) > 0:
+                    weights = layer_weights[0].flatten()
+                else:
+                    print("⚠ Neural network has no extractable weights")
+                    return {}
+            except (IndexError, AttributeError) as e:
+                print(f"⚠ Could not extract neural network weights: {e}")
+                return {}
         else:
             return {}
         
@@ -305,7 +316,10 @@ class StackedEnsemble:
         # Handle Keras models
         if self.meta_model_type == 'neural_net':
             from tensorflow import keras
-            self.meta_model = keras.models.load_model(data['model_file'])
+            model_file = data['model_file']
+            if not Path(model_file).exists():
+                raise FileNotFoundError(f"Keras model file not found: {model_file}")
+            self.meta_model = keras.models.load_model(model_file)
         else:
             self.meta_model = data['model']
         
@@ -369,7 +383,9 @@ def main():
     stacked_pred = stacker.predict(base_predictions)
     print(f"\n✓ Generated {len(stacked_pred)} stacked predictions")
     
-    # Save model
+    # Save model (ensure directory exists)
+    import os
+    os.makedirs('models', exist_ok=True)
     stacker.save('models/meta_model.pkl')
 
 

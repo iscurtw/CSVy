@@ -17,7 +17,6 @@ require_relative 'lib/model_validator'
 require_relative 'lib/ensemble_builder'
 require_relative 'lib/model_tracker'
 require_relative 'lib/neural_network_wrapper'
-require_relative 'lib/advanced_features'
 require_relative 'lib/stacked_ensemble'
 
 class CSVOrganizer < Thor
