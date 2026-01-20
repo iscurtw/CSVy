@@ -15,6 +15,12 @@ from .baseline_model import (
     PoissonBaseline,
     compare_baselines
 )
+from .xgboost_model import (
+    XGBoostModel,
+    XGBoostGoalPredictor,
+    grid_search_xgboost,
+    random_search_xgboost,
+)
 
 __all__ = [
     # ELO Model (Model 2)
@@ -28,5 +34,11 @@ __all__ = [
     'MovingAverageBaseline',
     'WeightedHistoryBaseline',
     'PoissonBaseline',
-    'compare_baselines'
+    'compare_baselines',
+    
+    # XGBoost Model (Model 4)
+    'XGBoostModel',
+    'XGBoostGoalPredictor',
+    'grid_search_xgboost',
+    'random_search_xgboost',
 ]

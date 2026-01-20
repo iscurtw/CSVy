@@ -52,14 +52,21 @@ Dynamic rating system that updates after each game.
 
 ## Model 4: XGBoost / Random Forest
 
-*(Not yet implemented)*
+Gradient boosting and tree-based models for high accuracy.
 
 | File | Purpose |
 |------|---------|
-| `utils/tree_model.py` | XGBoost/RF implementations |
-| `training/train_xgboost.ipynb` | XGBoost training |
-| `training/train_random_forest.ipynb` | Random Forest training |
-| `validation/validate_tree.ipynb` | Validation tests |
+| `models/xgboost_model.ipynb` | Core implementation notebook |
+| `utils/xgboost_model.py` | Reusable XGBoost module |
+| `training/train_xgboost.ipynb` | Training with hyperparameter tuning |
+| `training/train_random_forest.ipynb` | Random Forest training *(planned)* |
+| `validation/validate_xgboost.ipynb` | Validation tests *(planned)* |
+
+**Classes:** `XGBoostModel`, `XGBoostGoalPredictor`
+
+**Key Hyperparameters:** `learning_rate`, `n_estimators`, `max_depth`, `min_child_weight`, `subsample`, `colsample_bytree`
+
+**Functions:** `grid_search_xgboost`, `random_search_xgboost`
 
 ---
 
@@ -91,16 +98,19 @@ Dynamic rating system that updates after each game.
 python/
 ├── models/                     # Core implementation notebooks
 │   ├── baseline_model.ipynb    # Model 1
-│   └── elo_model.ipynb         # Model 2
+│   ├── elo_model.ipynb         # Model 2 (in notebooks/)
+│   └── xgboost_model.ipynb     # Model 4
 │
 ├── utils/                      # Reusable model modules
 │   ├── __init__.py
 │   ├── baseline_model.py       # Model 1
-│   └── elo_model.py            # Model 2
+│   ├── elo_model.py            # Model 2
+│   └── xgboost_model.py        # Model 4
 │
 ├── training/                   # Training notebooks
 │   ├── train_baseline.ipynb    # Model 1
-│   └── train_elo.ipynb         # Model 2
+│   ├── train_elo.ipynb         # Model 2
+│   └── train_xgboost.ipynb     # Model 4
 │
 ├── validation/                 # Validation notebooks
 │   ├── validate_baseline.ipynb # Model 1
@@ -121,7 +131,7 @@ python/
 | 1. Baseline | ✅ | ✅ | ✅ | ✅ | **Complete** |
 | 2. ELO | ✅ | ✅ | ✅ | ✅ | **Complete** |
 | 3. Linear | ❌ | ❌ | ❌ | ❌ | Not Started |
-| 4. XGBoost/RF | ❌ | ❌ | ❌ | ❌ | Not Started |
+| 4. XGBoost | ✅ | ✅ | ❌ | ❌ | **In Progress** |
 | 5. Ensemble | ❌ | ❌ | ❌ | ❌ | Not Started |
 
 ---
