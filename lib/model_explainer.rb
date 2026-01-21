@@ -48,8 +48,13 @@ class ModelExplainer
     predictions = load_csv(predictions_path)
     actuals = load_csv(actuals_path)
     features = load_csv(features_path)
+    
+    # Validate row counts match
+    unless predictions.size == actuals.size && actuals.size == features.size
+      raise "Row count mismatch: predictions=#{predictions.size}, actuals=#{actuals.size}, features=#{features.size}"
+    end
 
-    errors = calculate_errors(predictions, actuals)
+    errors = calculate_errors(predictions, actuals, features)
     error_analysis = {
       overall: overall_statistics(errors),
       by_magnitude: group_by_error_magnitude(errors, features),
@@ -142,6 +147,12 @@ class ModelExplainer
   end
 
   def generate_shap_script(model_path:, data_path:, output_dir:, model_type:, top_n:)
+    # Safely escape all paths and values for Python
+    model_path_json = model_path.to_json
+    data_path_json = data_path.to_json
+    output_dir_json = output_dir.to_json
+    model_type_json = model_type.to_json
+    
     <<~PYTHON
       import pandas as pd
       import numpy as np
@@ -153,10 +164,10 @@ class ModelExplainer
       from pathlib import Path
 
       # Load model
-      model = joblib.load('#{model_path}')
+      model = joblib.load(#{model_path_json})
       
       # Load data
-      data = pd.read_csv('#{data_path}')
+      data = pd.read_csv(#{data_path_json})
       
       # Separate features (remove target if present)
       target_cols = ['target', 'actual', 'label', 'y', 'win', 'result']
@@ -164,9 +175,9 @@ class ModelExplainer
       
       # Create SHAP explainer
       print("Creating SHAP explainer...")
-      if '#{model_type}' in ['xgboost', 'lightgbm', 'catboost']:
+      if #{model_type_json} in ['xgboost', 'lightgbm', 'catboost']:
           explainer = shap.TreeExplainer(model)
-      elif '#{model_type}' == 'linear':
+      elif #{model_type_json} == 'linear':
           explainer = shap.LinearExplainer(model, X)
       else:
           explainer = shap.KernelExplainer(model.predict, shap.sample(X, 100))
@@ -177,20 +188,20 @@ class ModelExplainer
       
       # Save SHAP values
       shap_df = pd.DataFrame(shap_values, columns=X.columns)
-      shap_df.to_csv('#{output_dir}/shap_values.csv', index=False)
+      shap_df.to_csv(#{output_dir_json} + '/shap_values.csv', index=False)
       
       # Summary plot (bar chart of mean absolute SHAP values)
       plt.figure(figsize=(10, 8))
       shap.summary_plot(shap_values, X, plot_type="bar", show=False, max_display=#{top_n})
       plt.tight_layout()
-      plt.savefig('#{output_dir}/shap_importance.png', dpi=150, bbox_inches='tight')
+      plt.savefig(#{output_dir_json} + '/shap_importance.png', dpi=150, bbox_inches='tight')
       plt.close()
       
       # Detailed summary plot (beeswarm)
       plt.figure(figsize=(10, 8))
       shap.summary_plot(shap_values, X, show=False, max_display=#{top_n})
       plt.tight_layout()
-      plt.savefig('#{output_dir}/shap_summary.png', dpi=150, bbox_inches='tight')
+      plt.savefig(#{output_dir_json} + '/shap_summary.png', dpi=150, bbox_inches='tight')
       plt.close()
       
       # Feature importance data
@@ -199,10 +210,10 @@ class ModelExplainer
           'feature': X.columns,
           'importance': feature_importance
       }).sort_values('importance', ascending=False)
-      importance_df.to_csv('#{output_dir}/feature_importance.csv', index=False)
+      importance_df.to_csv(#{output_dir_json} + '/feature_importance.csv', index=False)
       
       # Dependence plots for top features
-      Path('#{output_dir}/dependence').mkdir(exist_ok=True)
+      Path(#{output_dir_json} + '/dependence').mkdir(exist_ok=True)
       top_features = importance_df.head(10)['feature'].tolist()
       
       for feature in top_features:
@@ -210,7 +221,7 @@ class ModelExplainer
           shap.dependence_plot(feature, shap_values, X, show=False)
           plt.tight_layout()
           safe_name = feature.replace('/', '_').replace(' ', '_')
-          plt.savefig(f'#{output_dir}/dependence/{safe_name}.png', dpi=150, bbox_inches='tight')
+          plt.savefig(#{output_dir_json} + f'/dependence/{safe_name}.png', dpi=150, bbox_inches='tight')
           plt.close()
       
       # Generate HTML report
@@ -237,8 +248,8 @@ class ModelExplainer
       <body>
           <div class="container">
               <h1>🔍 SHAP Explainability Report</h1>
-              <p><strong>Model:</strong> #{model_path}</p>
-              <p><strong>Data:</strong> #{data_path}</p>
+              <p><strong>Model:</strong> {#{model_path_json}}</p>
+              <p><strong>Data:</strong> {#{data_path_json}}</p>
               <p><strong>Samples:</strong> {len(X)}</p>
               <p><strong>Features:</strong> {len(X.columns)}</p>
               
@@ -288,17 +299,21 @@ class ModelExplainer
       </html>
       '''
       
-      with open('#{output_dir}/shap_report.html', 'w') as f:
+      with open(#{output_dir_json} + '/shap_report.html', 'w') as f:
           f.write(html_content)
       
       print("✓ SHAP analysis complete!")
-      print(f"  - Summary plot: #{output_dir}/shap_summary.png")
-      print(f"  - Importance plot: #{output_dir}/shap_importance.png")
-      print(f"  - HTML report: #{output_dir}/shap_report.html")
+      print(f"  - Summary plot: {#{output_dir_json}}/shap_summary.png")
+      print(f"  - Importance plot: {#{output_dir_json}}/shap_importance.png")
+      print(f"  - HTML report: {#{output_dir_json}}/shap_report.html")
     PYTHON
   end
 
   def generate_single_prediction_script(model_path:, features:, output_path:, model_type:)
+    # Safely escape all values for Python
+    model_path_json = model_path.to_json
+    output_path_json = output_path.to_json
+    model_type_json = model_type.to_json
     features_json = features.to_json
     
     <<~PYTHON
@@ -309,17 +324,17 @@ class ModelExplainer
       import json
 
       # Load model
-      model = joblib.load('#{model_path}')
+      model = joblib.load(#{model_path_json})
       
       # Load features
-      features = json.loads('#{features_json}')
+      features = #{features_json}
       X = pd.DataFrame([features])
       
       # Make prediction
       prediction = model.predict(X)[0]
       
       # Create SHAP explainer
-      if '#{model_type}' in ['xgboost', 'lightgbm', 'catboost']:
+      if #{model_type_json} in ['xgboost', 'lightgbm', 'catboost']:
           explainer = shap.TreeExplainer(model)
       else:
           explainer = shap.KernelExplainer(model.predict, X)
@@ -346,7 +361,7 @@ class ModelExplainer
           )[:5]
       }
       
-      with open('#{output_path}.json', 'w') as f:
+      with open(#{output_path_json} + '.json', 'w') as f:
           json.dump(result, f, indent=2)
       
       print("✓ Single prediction explained!")
@@ -357,9 +372,10 @@ class ModelExplainer
     CSV.read(path, headers: true, converters: :numeric)
   end
 
-  def calculate_errors(predictions, actuals)
+  def calculate_errors(predictions, actuals, features)
     predictions.map.with_index do |pred_row, idx|
       actual_row = actuals[idx]
+      feature_row = features[idx]
       pred_val = pred_row['prediction'].to_f
       actual_val = actual_row['actual'].to_f
       
@@ -370,7 +386,7 @@ class ModelExplainer
         error: pred_val - actual_val,
         absolute_error: (pred_val - actual_val).abs,
         squared_error: (pred_val - actual_val) ** 2,
-        features: pred_row.to_h
+        features: feature_row.to_h
       }
     end
   end
