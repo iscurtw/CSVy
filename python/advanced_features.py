@@ -87,7 +87,7 @@ class AdvancedFeatures:
             .dt.days
             .fillna(7)  # First game assumed 7 days rest
         )
-        
+            
         # Back-to-back indicator (1 day or less)
         self.df['back_to_back'] = (self.df['rest_days'] <= 1).astype(int)
         
