@@ -14,7 +14,17 @@ Usage:
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score
+
+# Handle scikit-learn version compatibility for RMSE
+try:
+    from sklearn.metrics import root_mean_squared_error
+    def rmse_score(y_true, y_pred):
+        return root_mean_squared_error(y_true, y_pred)
+except ImportError:
+    from sklearn.metrics import mean_squared_error
+    def rmse_score(y_true, y_pred):
+        return mean_squared_error(y_true, y_pred, squared=False)
 
 
 # Column name mappings - checks these alternatives in order
@@ -329,7 +339,7 @@ class EloModel:
             predictions.append(home_pred)
             actuals.append(get_value(game, 'home_goals', 0))
         
-        rmse = mean_squared_error(actuals, predictions, squared=False)
+        rmse = rmse_score(actuals, predictions)
         mae = mean_absolute_error(actuals, predictions)
         r2 = r2_score(actuals, predictions) if len(set(actuals)) > 1 else 0.0
         
