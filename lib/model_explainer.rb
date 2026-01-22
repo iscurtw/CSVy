@@ -459,6 +459,8 @@ class ModelExplainer
 
   def analyze_feature_ranges(errors, features)
     # Analyze if errors are concentrated in certain feature value ranges
+    return [] if features.empty?
+    
     feature_columns = features[0].headers - ['prediction', 'actual', 'target', 'label']
     
     feature_columns.first(10).map do |feature|
