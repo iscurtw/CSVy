@@ -53,6 +53,11 @@ class ModelExplainer
     unless predictions.size == actuals.size && actuals.size == features.size
       raise "Row count mismatch: predictions=#{predictions.size}, actuals=#{actuals.size}, features=#{features.size}"
     end
+    
+    # Guard against empty datasets
+    if predictions.empty?
+      raise "Cannot analyze errors: all datasets are empty"
+    end
 
     errors = calculate_errors(predictions, actuals, features)
     error_analysis = {
@@ -76,6 +81,11 @@ class ModelExplainer
   def debug_features(data_path:, output_dir:, threshold: 3.0)
     FileUtils.mkdir_p(output_dir)
     data = load_csv(data_path)
+    
+    # Guard against empty datasets
+    if data.empty?
+      raise "Cannot debug features: dataset is empty"
+    end
     
     results = {
       missing_values: detect_missing_values(data),
@@ -158,6 +168,7 @@ class ModelExplainer
     data_path_json = data_path.to_json
     output_dir_json = output_dir.to_json
     model_type_json = model_type.to_json
+    top_n_safe = top_n.to_i  # Sanitize numeric parameter
     
     <<~PYTHON
       import pandas as pd
@@ -209,14 +220,14 @@ class ModelExplainer
       
       # Summary plot (bar chart of mean absolute SHAP values)
       plt.figure(figsize=(10, 8))
-      shap.summary_plot(shap_values, X, plot_type="bar", show=False, max_display=#{top_n})
+      shap.summary_plot(shap_values, X, plot_type="bar", show=False, max_display=#{top_n_safe})
       plt.tight_layout()
       plt.savefig(output_dir + '/shap_importance.png', dpi=150, bbox_inches='tight')
       plt.close()
       
       # Detailed summary plot (beeswarm)
       plt.figure(figsize=(10, 8))
-      shap.summary_plot(shap_values, X, show=False, max_display=#{top_n})
+      shap.summary_plot(shap_values, X, show=False, max_display=#{top_n_safe})
       plt.tight_layout()
       plt.savefig(output_dir + '/shap_summary.png', dpi=150, bbox_inches='tight')
       plt.close()
@@ -368,10 +379,16 @@ class ModelExplainer
       if isinstance(shap_values, list):
           shap_values = np.mean(shap_values, axis=0)
       
+      # Handle multiclass expected_value
+      base_value = None
+      if hasattr(explainer, 'expected_value'):
+          ev = explainer.expected_value
+          base_value = float(np.mean(ev)) if isinstance(ev, (list, np.ndarray)) else float(ev)
+      
       # Prepare result
       result = {
           'prediction': float(prediction),
-          'base_value': float(explainer.expected_value) if hasattr(explainer, 'expected_value') else None,
+          'base_value': base_value,
           'feature_contributions': {
               feature: float(shap_val)
               for feature, shap_val in zip(X.columns, shap_values[0])
